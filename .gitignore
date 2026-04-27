@@ -1,0 +1,60 @@
+# Compilados y binarios generales
+*.exe
+*.out
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+
+# Binarios sin extension generados en WSL/Linux
+cpu_stress
+memory_stress
+entregable1
+entregable2
+entregable3
+entregable4
+archivos
+
+p3_1
+p3_2
+p3_ent1
+p3_4
+p3_5
+p3_ent2
+
+p4_1
+p4_2
+p4_3
+p4_ent
+
+p5_main
+p5_cos_exec
+
+p6_1
+p6_2
+
+opt2_1
+opt2_2
+opt2_3
+opt2_4
+
+proyeccion1
+proyeccion2
+
+# Archivos temporales/salida de pruebas
+*.log
+*_out.txt
+p5_run_output.txt
+p7_run_output.txt
+
+# Archivos de datos generados durante practicas
+fichero.txt
+fichero_2.txt
+fichero_tr.txt
+
+# Sistema/editor
+.DS_Store
+Thumbs.db
+.vscode/
