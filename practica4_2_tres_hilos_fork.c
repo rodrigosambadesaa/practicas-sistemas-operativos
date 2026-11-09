@@ -48,22 +48,25 @@ static void *fork_thread(void *arg)
 
     if (pid == 0)
     {
-        printf("[P4-2 HIJO] PID=%ld PPID=%ld. Tras fork desde multihilo, solo existe el hilo llamador.\n",
-               (long)getpid(),
-               (long)getppid());
-        fflush(stdout);
-
-        char cmd[128];
-        snprintf(cmd, sizeof(cmd), "ps -T -p %ld -o pid,ppid,tid,comm", (long)getpid());
-        int rc = system(cmd);
-        if (rc == -1)
-        {
-            perror("system ps");
-        }
-
-        sleep(5);
-        printf("[P4-2 HIJO] Sigo vivo aunque el hilo creador del padre haya terminado.\n");
-        _exit(0);
+        /*
+         * Tras fork() en un proceso multihilo, solo se permiten funciones
+         * async-signal-safe hasta exec(). /bin/sh ejecuta ps y sleep de forma segura.
+         * En macOS ps -M muestra hilos; en Linux se usa ps -T.
+         */
+#ifdef __APPLE__
+        execl("/bin/sh", "sh", "-c",
+              "echo '[P4-2 HIJO] Un unico hilo tras fork+exec (macOS):'; "
+              "ps -M -p $$ -o pid,ppid,comm; "
+              "sleep 2; echo '[P4-2 HIJO] El proceso sigue vivo.'",
+              (char *)NULL);
+#else
+        execl("/bin/sh", "sh", "-c",
+              "echo '[P4-2 HIJO] Un unico hilo tras fork+exec (Linux):'; "
+              "ps -T -p $$ -o pid,ppid,tid,comm; "
+              "sleep 2; echo '[P4-2 HIJO] El proceso sigue vivo.'",
+              (char *)NULL);
+#endif
+        _exit(127);
     }
 
     pthread_mutex_lock(&child_mutex);
