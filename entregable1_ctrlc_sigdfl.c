@@ -15,47 +15,52 @@ int main(void)
 
 #else
 
+#define _POSIX_C_SOURCE 200809L
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
 
-static volatile sig_atomic_t contador_sigint = 0;
-
-static void manejar_sigint(int sig)
-{
-    (void)sig;
-    contador_sigint++;
-
-    printf("[ENT1] Ctrl+C capturado (%d/8).\n", (int)contador_sigint);
-
-    if (contador_sigint >= 8)
-    {
-        printf("[ENT1] Se restaura accion por defecto de SIGINT. El siguiente Ctrl+C terminara el proceso.\n");
-        fflush(stdout);
-        signal(SIGINT, SIG_DFL);
-        return;
-    }
-
-    fflush(stdout);
-}
-
 int main(void)
 {
-    if (signal(SIGINT, manejar_sigint) == SIG_ERR)
+    sigset_t blocked, oldmask;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGINT);
+    if (sigprocmask(SIG_BLOCK, &blocked, &oldmask) < 0)
     {
-        perror("signal SIGINT");
+        perror("sigprocmask");
         return 1;
     }
 
     printf("[ENT1] PID=%ld. Pulsa Ctrl+C repetidamente.\n", (long)getpid());
     fflush(stdout);
 
-    for (;;)
+    for (int i = 1; i <= 8; ++i)
     {
-        pause();
+        int sig = 0;
+        if (sigwait(&blocked, &sig) != 0)
+        {
+            fprintf(stderr, "sigwait ha fallado\n");
+            return 1;
+        }
+        printf("[ENT1] Ctrl+C capturado (%d/8).\n", i);
+        fflush(stdout);
     }
 
-    return 0;
+    puts("[ENT1] Se restaura SIG_DFL. El siguiente Ctrl+C terminara el proceso.");
+    fflush(stdout);
+    if (signal(SIGINT, SIG_DFL) == SIG_ERR)
+    {
+        perror("signal SIG_DFL");
+        return 1;
+    }
+    if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
+    {
+        perror("restaurar mascara");
+        return 1;
+    }
+
+    for (;;)
+        pause();
 }
 
 #endif
