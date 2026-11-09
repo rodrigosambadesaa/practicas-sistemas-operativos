@@ -48,25 +48,10 @@ static void *fork_thread(void *arg)
 
     if (pid == 0)
     {
-        /*
-         * Tras fork() en un proceso multihilo, solo se permiten funciones
-         * async-signal-safe hasta exec(). /bin/sh ejecuta ps y sleep de forma segura.
-         * En macOS ps -M muestra hilos; en Linux se usa ps -T.
-         */
-#ifdef __APPLE__
-        execl("/bin/sh", "sh", "-c",
-              "echo '[P4-2 HIJO] Un unico hilo tras fork+exec (macOS):'; "
-              "ps -M -p $$ -o pid,ppid,comm; "
-              "sleep 2; echo '[P4-2 HIJO] El proceso sigue vivo.'",
-              (char *)NULL);
-#else
-        execl("/bin/sh", "sh", "-c",
-              "echo '[P4-2 HIJO] Un unico hilo tras fork+exec (Linux):'; "
-              "ps -T -p $$ -o pid,ppid,tid,comm; "
-              "sleep 2; echo '[P4-2 HIJO] El proceso sigue vivo.'",
-              (char *)NULL);
-#endif
-        _exit(127);
+        /* Solo se usan operaciones async-signal-safe tras fork() multihilo.
+         * El padre inspecciona este proceso mientras espera en pause(). */
+        for (;;)
+            pause();
     }
 
     pthread_mutex_lock(&child_mutex);
@@ -107,9 +92,24 @@ int main(void)
 
     if (child > 0)
     {
+        /* Inspeccion externa sin llamar a stdio/system en el hijo post-fork. */
+        char cmd[128];
+#ifdef __APPLE__
+        snprintf(cmd, sizeof(cmd), "ps -M -p %ld -o pid,ppid,comm", (long)child);
+#else
+        snprintf(cmd, sizeof(cmd), "ps -T -p %ld -o pid,ppid,tid,comm", (long)child);
+#endif
+        printf("[P4-2 MAIN] H3 termino; hijo %ld sigue vivo. Hilos del hijo:\n", (long)child);
+        fflush(stdout);
+        if (system(cmd) == -1)
+            perror("system ps");
+        if (kill(child, SIGTERM) < 0)
+            perror("kill child");
         int status = 0;
-        waitpid(child, &status, 0);
-        printf("[P4-2 MAIN] Hijo %ld finalizado.\n", (long)child);
+        if (waitpid(child, &status, 0) < 0)
+            perror("waitpid child");
+        else
+            printf("[P4-2 MAIN] Hijo %ld finalizado.\n", (long)child);
     }
 
     return 0;
