@@ -36,6 +36,16 @@ static void on_usr1(int sig)
 
 int main(void)
 {
+    sigset_t blocked, previous;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGUSR1);
+    /* H2 hereda SIGUSR1 bloqueada; no puede morir antes de instalar el handler. */
+    if (sigprocmask(SIG_BLOCK, &blocked, &previous) < 0)
+    {
+        perror("sigprocmask");
+        return 1;
+    }
+
     int pfd[2] = {-1, -1};
     if (pipe(pfd) < 0)
     {
@@ -95,9 +105,11 @@ int main(void)
         printf("[OPT2-1 H2] PID=%ld esperando SIGUSR1 de H1...\n", (long)getpid());
         fflush(stdout);
 
+        sigset_t waiting = previous;
+        sigdelset(&waiting, SIGUSR1);
         while (!got_usr1)
         {
-            pause();
+            sigsuspend(&waiting);
         }
 
         printf("[OPT2-1 H2] SIGUSR1 recibida correctamente.\n");
@@ -113,6 +125,11 @@ int main(void)
         return 1;
     }
     close(pfd[1]);
+    if (sigprocmask(SIG_SETMASK, &previous, NULL) < 0)
+    {
+        perror("restaurar mascara");
+        return 1;
+    }
 
     int st = 0;
     waitpid(h1, &st, 0);
