@@ -2,6 +2,7 @@
 """Pruebas de ejecucion rapidas, aisladas y con timeout para Linux/macOS."""
 import os
 import pathlib
+import re
 import signal
 import subprocess
 import tempfile
@@ -62,21 +63,38 @@ def main():
         run("practica3_2_padre_hijo_signal", cwd=cwd)
         run("practica3_4_waitpid_kill_hermanos", cwd=cwd)
         run("practica3_5_pause_sigusr1", cwd=cwd)
-        run("entregable2_sigaction_bloqueo", cwd=cwd)
-        run("opt2_1_hijo1_senhala_hijo2_pipe", cwd=cwd)
+        signals = run("entregable2_sigaction_bloqueo", cwd=cwd)
+        check("SIGUSR1 esta pendiente" in signals, "No se observo SIGUSR1 pendiente")
+        check(signals.index("Capturada SIGUSR2") < signals.index("Capturada SIGUSR1"),
+              "Orden inesperado de entrega de senales")
+        for _ in range(5):
+            output = run("opt2_1_hijo1_senhala_hijo2_pipe", cwd=cwd)
+            check("SIGUSR1 recibida correctamente" in output, "No hubo intercambio entre hermanos")
         canal = f"so-test-{os.getpid()}"
-        run_pair(cwd, ["opt2_2_senales_sin_parentesco", canal, "A"],
-                 ["opt2_2_senales_sin_parentesco", canal, "B"])
+        out_a, out_b = run_pair(cwd, ["opt2_2_senales_sin_parentesco", canal, "A"],
+                                ["opt2_2_senales_sin_parentesco", canal, "B"])
+        check("Intercambio completado" in out_a and "Intercambio completado" in out_b,
+              "Intercambio de senales incompleto")
         run("opt2_3_zombies_huerfanos", 1, 1, cwd=cwd, timeout=20)
         run("entregable2_zombie_orfano_exec", "wait", cwd=cwd, timeout=12)
 
-        run("practica4_1_variables_hilos", cwd=cwd)
-        run("practica4_2_tres_hilos_fork", cwd=cwd)
+        thread_values = run("practica4_1_variables_hilos", cwd=cwd)
+        check("Final: global=15, main_local=27" in thread_values,
+              "Variables compartidas incorrectas")
+        thread_fork = run("practica4_2_tres_hilos_fork", cwd=cwd)
+        check("Hilos del hijo:" in thread_fork and "illegal option" not in thread_fork,
+              "Inspeccion de hilos con ps fallida")
         run("practica4_3_exit_vs_pthread_exit", cwd=cwd, expected=7)
-        run("practica5_cos_exec", cwd=cwd)
+        cos_out = run("practica5_cos_exec", cwd=cwd)
+        map_pattern = r"(?m)^[0-9a-f]{8,16}-[0-9a-f]{8,16} [rwx-]{3,4}"
+        check(re.search(map_pattern, cos_out) is not None,
+              "No se mostraron regiones reales del mapa de memoria")
         out = run("practica5_mapa_memoria", str(BIN / "practica5_cos_exec"),
                   cwd=cwd, stdin="\n" * 8)
         check("Practica 5 completada" in out, "Practica 5 incompleta")
+        check(re.search(map_pattern, out) is not None, "No se mostro el mapa de memoria")
+        check("STACK-MAP" in out and "COS-EXEC" in out,
+              "No se mostraron pilas de hilos o la imagen post-exec")
 
         p = cwd / "dato.txt"
         p.write_text("abcdefghijk", encoding="utf-8")
@@ -100,6 +118,8 @@ def main():
         (directory / "b1").write_text("x")
         output = run("archivos", str(directory), "0644", cwd=cwd)
         check("Suma total de espacio" in output, "No se listaron atributos")
+        check((directory / "a1").stat().st_mode & 0o777 == 0o644,
+              "chmod no establecio los permisos pedidos")
 
         # Programa deliberadamente infinito: comprobar SIGKILL sin dejar procesos vivos.
         p_inf = subprocess.Popen([str(BIN / "practica3_1_infinito_sigkill")],
