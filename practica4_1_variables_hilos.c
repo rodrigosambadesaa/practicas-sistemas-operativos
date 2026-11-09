@@ -20,6 +20,7 @@ int main(void)
 #include <unistd.h>
 
 static int g_global = 10;
+static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct
 {
@@ -32,6 +33,7 @@ static void *worker(void *arg)
     thread_arg_t *a = (thread_arg_t *)arg;
     int local_hilo = 1000 + a->id;
 
+    pthread_mutex_lock(&g_lock);
     printf("[P4-1 H%d] Inicio: global=%d, main_local=%d, local_hilo=%d\n",
            a->id,
            g_global,
@@ -46,7 +48,9 @@ static void *worker(void *arg)
         printf("[P4-1 H%d] Modifico global y main_local. local_hilo=%d\n", a->id, local_hilo);
     }
 
+    pthread_mutex_unlock(&g_lock);
     sleep(1);
+    pthread_mutex_lock(&g_lock);
 
     printf("[P4-1 H%d] Tras cambios: global=%d, main_local=%d, local_hilo=%d\n",
            a->id,
@@ -54,6 +58,7 @@ static void *worker(void *arg)
            *(a->shared_main_local),
            local_hilo);
 
+    pthread_mutex_unlock(&g_lock);
     pthread_exit(NULL);
 }
 
