@@ -51,6 +51,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (st.st_size <= 0)
+    {
+        fprintf(stderr, "No se puede proyectar un archivo vacio.\n");
+        close(fd);
+        return 1;
+    }
     size_t len = (size_t)st.st_size;
     printf("[P6-1] Archivo: %s, longitud=%zu bytes\n", path, len);
 

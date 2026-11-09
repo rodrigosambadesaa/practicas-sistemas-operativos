@@ -34,28 +34,7 @@ int main(void)
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-static void print_maps(const char *title)
-{
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/%ld/maps", (long)getpid());
-
-    FILE *f = fopen(path, "r");
-    if (!f)
-    {
-        perror("fopen maps");
-        return;
-    }
-
-    printf("\n========== %s (PID=%ld) ==========\n", title, (long)getpid());
-    char line[1024];
-    while (fgets(line, sizeof(line), f) != NULL)
-    {
-        fputs(line, stdout);
-    }
-    fclose(f);
-    printf("========== fin maps ==========\n");
-}
+#include "posix_compat.h"
 
 static int is_shared(const char *s)
 {
@@ -112,12 +91,18 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (st.st_size <= 0)
+    {
+        fprintf(stderr, "No se puede proyectar un archivo vacio.\n");
+        close(fd);
+        return 1;
+    }
     size_t len = (size_t)st.st_size;
     int prot = is_ro(perm_mode) ? PROT_READ : (PROT_READ | PROT_WRITE);
     int flags = is_shared(map_mode) ? MAP_SHARED : MAP_PRIVATE;
 
     printf("[P6-2] archivo=%s len=%zu modo=%s perm=%s\n", path, len, map_mode, perm_mode);
-    print_maps("ANTES DE mmap");
+    so_print_maps("ANTES DE mmap");
 
     char *map = (char *)mmap(NULL, len, prot, flags, fd, 0);
     if (map == MAP_FAILED)
@@ -127,7 +112,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    print_maps("DESPUES DE mmap");
+    so_print_maps("DESPUES DE mmap");
 
     printf("[P6-2] Primeros bytes previos en mapa: ");
     size_t preview = (len < 32) ? len : 32;

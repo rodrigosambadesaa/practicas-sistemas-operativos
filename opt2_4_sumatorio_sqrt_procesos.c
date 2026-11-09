@@ -20,6 +20,11 @@ int main(void)
 #else
 
 #define _XOPEN_SOURCE 700
+#if defined(__linux__)
+#define _DEFAULT_SOURCE 1
+#elif defined(__APPLE__)
+#define _DARWIN_C_SOURCE 1
+#endif
 
 #include <errno.h>
 #include <math.h>
@@ -32,6 +37,7 @@ int main(void)
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include "posix_compat.h"
 
 static double now_seconds(void)
 {
@@ -55,7 +61,7 @@ static uint64_t parse_u64(const char *s)
 
 int main(int argc, char **argv)
 {
-    long nc_long = sysconf(_SC_NPROCESSORS_ONLN);
+    long nc_long = so_online_cpus();
     if (nc_long <= 0)
     {
         nc_long = 1;
@@ -68,7 +74,7 @@ int main(int argc, char **argv)
     double *partials = (double *)mmap(NULL,
                                       (size_t)Nc * sizeof(double),
                                       PROT_READ | PROT_WRITE,
-                                      MAP_SHARED | MAP_ANONYMOUS,
+                                      MAP_SHARED | MAP_ANON,
                                       -1,
                                       0);
     if (partials == MAP_FAILED)

@@ -48,22 +48,10 @@ static void *fork_thread(void *arg)
 
     if (pid == 0)
     {
-        printf("[P4-2 HIJO] PID=%ld PPID=%ld. Tras fork desde multihilo, solo existe el hilo llamador.\n",
-               (long)getpid(),
-               (long)getppid());
-        fflush(stdout);
-
-        char cmd[128];
-        snprintf(cmd, sizeof(cmd), "ps -T -p %ld -o pid,ppid,tid,comm", (long)getpid());
-        int rc = system(cmd);
-        if (rc == -1)
-        {
-            perror("system ps");
-        }
-
-        sleep(5);
-        printf("[P4-2 HIJO] Sigo vivo aunque el hilo creador del padre haya terminado.\n");
-        _exit(0);
+        /* Solo se usan operaciones async-signal-safe tras fork() multihilo.
+         * El padre inspecciona este proceso mientras espera en pause(). */
+        for (;;)
+            pause();
     }
 
     pthread_mutex_lock(&child_mutex);
@@ -104,9 +92,24 @@ int main(void)
 
     if (child > 0)
     {
+        /* Inspeccion externa sin llamar a stdio/system en el hijo post-fork. */
+        char cmd[128];
+#ifdef __APPLE__
+        snprintf(cmd, sizeof(cmd), "ps -M -p %ld -o pid,ppid,comm", (long)child);
+#else
+        snprintf(cmd, sizeof(cmd), "ps -T -p %ld -o pid,ppid,tid,comm", (long)child);
+#endif
+        printf("[P4-2 MAIN] H3 termino; hijo %ld sigue vivo. Hilos del hijo:\n", (long)child);
+        fflush(stdout);
+        if (system(cmd) == -1)
+            perror("system ps");
+        if (kill(child, SIGTERM) < 0)
+            perror("kill child");
         int status = 0;
-        waitpid(child, &status, 0);
-        printf("[P4-2 MAIN] Hijo %ld finalizado.\n", (long)child);
+        if (waitpid(child, &status, 0) < 0)
+            perror("waitpid child");
+        else
+            printf("[P4-2 MAIN] Hijo %ld finalizado.\n", (long)child);
     }
 
     return 0;

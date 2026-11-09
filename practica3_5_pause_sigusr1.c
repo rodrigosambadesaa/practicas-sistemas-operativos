@@ -26,8 +26,7 @@ static void manejar_usr1(int sig)
 {
     (void)sig;
     recibida = 1;
-    printf("[P5-HIJO] Recibida SIGUSR1, se desbloquea pause().\n");
-    fflush(stdout);
+    /* El handler solo modifica una variable sig_atomic_t (async-signal-safe). */
 }
 
 int main(void)
@@ -55,7 +54,8 @@ int main(void)
 
         if (recibida)
         {
-            printf("[P5-HIJO] Continuo ejecucion tras pause.\n");
+            printf("[P5-HIJO] Recibida SIGUSR1; continuo ejecucion tras pause.\n");
+            fflush(stdout);
         }
         _exit(0);
     }

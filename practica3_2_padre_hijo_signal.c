@@ -25,23 +25,30 @@ static volatile sig_atomic_t hijo_pid_global = -1;
 
 static void gestion(int numero_de_senhal)
 {
+    /* La salida por write evita bloqueos y UB al interrumpir stdio. */
     switch (numero_de_senhal)
     {
     case SIGUSR1:
-        printf("[P2] Senhal SIGUSR1 recibida. Soy PID=%ld\n", (long)getpid());
-        break;
-    case SIGUSR2:
-        printf("[P2] Senhal SIGUSR2 recibida. Soy PID=%ld\n", (long)getpid());
-        break;
-    case SIGTERM:
-        printf("[P2] Senhal SIGTERM recibida. Soy PID=%ld y termino.\n", (long)getpid());
-        fflush(stdout);
-        _exit(0);
-    default:
-        printf("[P2] Senhal %d recibida en PID=%ld\n", numero_de_senhal, (long)getpid());
+    {
+        static const char msg[] = "[P2] Senhal SIGUSR1 recibida.\n";
+        (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1);
         break;
     }
-    fflush(stdout);
+    case SIGUSR2:
+    {
+        static const char msg[] = "[P2] Senhal SIGUSR2 recibida.\n";
+        (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1);
+        break;
+    }
+    case SIGTERM:
+    {
+        static const char msg[] = "[P2] Senhal SIGTERM recibida; termino.\n";
+        (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1);
+        _exit(0);
+    }
+    default:
+        break;
+    }
 }
 
 int main(void)
