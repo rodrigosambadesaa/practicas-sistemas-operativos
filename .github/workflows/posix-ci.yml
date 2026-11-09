@@ -1,0 +1,27 @@
+name: Linux and macOS POSIX exercises
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-smoke:
+    name: Build and smoke tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show compiler and OS
+        run: |
+          uname -a
+          cc --version || true
+      - name: Build all C exercises
+        run: make -j2 all
+      - name: Run portable smoke tests
+        run: make test
