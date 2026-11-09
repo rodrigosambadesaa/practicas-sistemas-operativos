@@ -91,6 +91,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (st.st_size <= 0)
+    {
+        fprintf(stderr, "No se puede proyectar un archivo vacio.\n");
+        close(fd);
+        return 1;
+    }
     size_t len = (size_t)st.st_size;
     int prot = is_ro(perm_mode) ? PROT_READ : (PROT_READ | PROT_WRITE);
     int flags = is_shared(map_mode) ? MAP_SHARED : MAP_PRIVATE;
