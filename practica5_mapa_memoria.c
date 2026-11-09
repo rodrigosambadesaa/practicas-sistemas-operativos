@@ -21,7 +21,9 @@ int main(void)
 
 #else
 
+#if defined(__linux__)
 #define _GNU_SOURCE
+#endif
 
 #include <errno.h>
 #include <math.h>
@@ -31,7 +33,7 @@ int main(void)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/syscall.h>
+#include "posix_compat.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -49,11 +51,6 @@ typedef struct
     int *param_ptr;
 } thread_arg_t;
 
-static long get_tid(void)
-{
-    return syscall(SYS_gettid);
-}
-
 static void wait_enter(const char *msg)
 {
     int c;
@@ -64,57 +61,6 @@ static void wait_enter(const char *msg)
     {
         c = getchar();
     } while (c != '\n' && c != EOF);
-}
-
-static void print_maps(const char *title)
-{
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/%ld/maps", (long)getpid());
-
-    FILE *f = fopen(path, "r");
-    if (!f)
-    {
-        perror("fopen maps");
-        return;
-    }
-
-    printf("\n========== %s (PID=%ld) ==========\n", title, (long)getpid());
-
-    char line[1024];
-    while (fgets(line, sizeof(line), f) != NULL)
-    {
-        fputs(line, stdout);
-    }
-
-    fclose(f);
-    printf("========== fin maps ==========\n");
-    fflush(stdout);
-}
-
-static void print_stack_map_for_tid(long tid)
-{
-    char path[128];
-    snprintf(path, sizeof(path), "/proc/%ld/task/%ld/maps", (long)getpid(), tid);
-
-    FILE *f = fopen(path, "r");
-    if (!f)
-    {
-        perror("fopen task maps");
-        return;
-    }
-
-    printf("[STACK-MAP] TID=%ld archivo=%s\n", tid, path);
-
-    char line[1024];
-    while (fgets(line, sizeof(line), f) != NULL)
-    {
-        if (strstr(line, "[stack") != NULL)
-        {
-            fputs(line, stdout);
-        }
-    }
-
-    fclose(f);
 }
 
 static void f1(int p)
@@ -141,9 +87,9 @@ static void *thread_fn(void *arg)
 {
     thread_arg_t *a = (thread_arg_t *)arg;
     int local_thread = g_shared + *(a->param_ptr);
-    long tid = get_tid();
+    unsigned long long tid = so_thread_id();
 
-    printf("[HILO %d] PID=%ld TID=%ld\n", a->id, (long)getpid(), tid);
+    printf("[HILO %d] PID=%ld TID=%llu\n", a->id, (long)getpid(), tid);
     printf("[HILO %d] dir(g_shared)=%p valor=%d\n", a->id, (void *)&g_shared, g_shared);
     printf("[HILO %d] dir(parametro recibido)=%p valor=%d\n",
            a->id,
@@ -154,7 +100,7 @@ static void *thread_fn(void *arg)
            (void *)&local_thread,
            local_thread);
 
-    print_stack_map_for_tid(tid);
+    so_print_current_stack();
 
     return NULL;
 }
@@ -172,15 +118,15 @@ int main(int argc, char **argv)
     printf("[P1] dir(main)=%p\n", (void *)&main);
     printf("[P1] dir(g_var)=%p, dir(g_arr)=%p\n", (void *)&g_var, (void *)g_arr);
     printf("[P1] dir(local_var)=%p, dir(local_arr)=%p\n", (void *)&local_var, (void *)local_arr);
-    print_maps("MAPA EN PUNTO 1");
+    so_print_maps("MAPA EN PUNTO 1");
 
     wait_enter("Punto 2: funciones f1 y f2 con parametro/local");
     f1(11);
     f2(22);
-    print_maps("MAPA EN PUNTO 2");
+    so_print_maps("MAPA EN PUNTO 2");
 
     wait_enter("Punto 3: malloc/free y mapa antes/despues");
-    print_maps("ANTES DE malloc");
+    so_print_maps("ANTES DE malloc");
 
     size_t small_sz = 1024;
     size_t big_sz = 16 * 1024 * 1024;
@@ -200,12 +146,12 @@ int main(int argc, char **argv)
 
     printf("[P3] small malloc(%zu) -> %p\n", small_sz, small);
     printf("[P3] big   malloc(%zu) -> %p\n", big_sz, big);
-    print_maps("DESPUES DE malloc");
+    so_print_maps("DESPUES DE malloc");
 
     free(small);
     free(big);
     printf("[P3] free(small) y free(big) ejecutados.\n");
-    print_maps("DESPUES DE free");
+    so_print_maps("DESPUES DE free");
 
     wait_enter("Punto 4: fork + malloc en hijo + exec a calculo de cosenos");
     pid_t child = fork();
@@ -218,7 +164,7 @@ int main(int argc, char **argv)
     if (child == 0)
     {
         printf("[P4-HIJO] PID=%ld PPID=%ld\n", (long)getpid(), (long)getppid());
-        print_maps("HIJO ANTES DE malloc");
+        so_print_maps("HIJO ANTES DE malloc");
 
         void *child_mem = malloc(8 * 1024 * 1024);
         if (!child_mem)
@@ -228,7 +174,7 @@ int main(int argc, char **argv)
         }
         memset(child_mem, 0xCC, 8 * 1024 * 1024);
         printf("[P4-HIJO] malloc(8MB) -> %p\n", child_mem);
-        print_maps("HIJO DESPUES DE malloc (antes de exec)");
+        so_print_maps("HIJO DESPUES DE malloc (antes de exec)");
 
         execl(cos_exec, cos_exec, (char *)NULL);
         perror("execl cos_exec");
@@ -259,7 +205,7 @@ int main(int argc, char **argv)
     printf("[P5-MAIN] dir(g_shared)=%p valor=%d\n", (void *)&g_shared, g_shared);
     printf("[P5-MAIN] dir(main_param1)=%p valor=%d\n", (void *)&main_param1, main_param1);
     printf("[P5-MAIN] dir(main_param2)=%p valor=%d\n", (void *)&main_param2, main_param2);
-    print_stack_map_for_tid(get_tid());
+    so_print_current_stack();
 
     if (pthread_create(&t1, NULL, thread_fn, &a1) != 0)
     {
@@ -275,7 +221,7 @@ int main(int argc, char **argv)
     pthread_join(t1, NULL);
     pthread_join(t2, NULL);
 
-    print_maps("MAPA FINAL EN PADRE");
+    so_print_maps("MAPA FINAL EN PADRE");
 
     printf("\n[P5] Practica 5 completada.\n");
     return 0;
