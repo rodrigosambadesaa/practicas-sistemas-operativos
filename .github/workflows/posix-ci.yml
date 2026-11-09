@@ -14,9 +14,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, macos-15-intel]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Show compiler and OS
         run: |
           uname -a
