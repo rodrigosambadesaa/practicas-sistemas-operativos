@@ -31,6 +31,7 @@ int main(void)
 #include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include "posix_compat.h"
 
 typedef struct
 {
@@ -76,7 +77,7 @@ static uint64_t parse_u64(const char *s)
 
 int main(int argc, char **argv)
 {
-    long nc_long = sysconf(_SC_NPROCESSORS_ONLN);
+    long nc_long = so_online_cpus();
     if (nc_long <= 0)
     {
         nc_long = 1;
