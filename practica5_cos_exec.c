@@ -19,32 +19,9 @@ int main(void)
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "posix_compat.h"
 
 #define PI 3.14159265358979323846
-
-static void print_maps(const char *title)
-{
-    char path[64];
-    snprintf(path, sizeof(path), "/proc/%ld/maps", (long)getpid());
-
-    FILE *f = fopen(path, "r");
-    if (!f)
-    {
-        perror("fopen maps");
-        return;
-    }
-
-    printf("\n========== %s (PID=%ld) ==========\n", title, (long)getpid());
-
-    char line[1024];
-    while (fgets(line, sizeof(line), f) != NULL)
-    {
-        fputs(line, stdout);
-    }
-
-    fclose(f);
-    printf("========== fin maps ==========\n");
-}
 
 int main(void)
 {
@@ -64,7 +41,7 @@ int main(void)
     printf("[COS-EXEC] PID=%ld\n", (long)getpid());
     printf("[COS-EXEC] dir(main)=%p, dir(angles)=%p\n", (void *)&main, (void *)angles);
 
-    print_maps("MAPA EN IMAGEN NUEVA (post-exec)");
+    so_print_maps("MAPA EN IMAGEN NUEVA (post-exec)");
 
     double acc = 0.0;
     for (size_t i = 0; i < n; i++)
