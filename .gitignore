@@ -58,3 +58,6 @@ fichero_tr.txt
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Directorio de compilacion multiplataforma
+build/
