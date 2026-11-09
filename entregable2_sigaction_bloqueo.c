@@ -29,15 +29,17 @@ int main(void)
 
 static void manejador(int sig)
 {
+    /* write() es async-signal-safe; printf()/fflush() no lo son. */
     if (sig == SIGUSR1)
     {
-        printf("[ENT2-PADRE] Capturada SIGUSR1\n");
+        static const char msg[] = "[ENT2-PADRE] Capturada SIGUSR1\n";
+        (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1);
     }
     else if (sig == SIGUSR2)
     {
-        printf("[ENT2-PADRE] Capturada SIGUSR2\n");
+        static const char msg[] = "[ENT2-PADRE] Capturada SIGUSR2\n";
+        (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1);
     }
-    fflush(stdout);
 }
 
 int main(void)
