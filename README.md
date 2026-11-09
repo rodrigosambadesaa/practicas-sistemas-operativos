@@ -1,295 +1,102 @@
-# Practica 1 - Consumo de memoria y CPU en C
+# Prácticas de Sistemas Operativos (C / POSIX)
 
-## Archivos
+Ejercicios de procesos, señales, hilos, memoria, proyecciones de archivos y sistema de archivos. Se pueden **compilar y ejecutar en Linux y macOS** (tanto Mac Intel como Apple Silicon) utilizando el código fuente C.
 
-- `memory_stress.c`: consumo progresivo de memoria usando `malloc`, escritura de datos y pausa con `sleep`.
-- `cpu_stress.c`: carga alta de CPU con operaciones en `double` dentro de un lazo grande.
+> ⚠️ Algunos ejercicios crean procesos zombis, envían señales o provocan carga de CPU y memoria. Ejecútelos en una terminal de usuario, en un directorio de pruebas, y **no utilice los modos ilimitados de estrés** sin supervisión.
 
-## Compilar (GCC)
+## Requisitos
 
-```powershell
-gcc -O2 -Wall -Wextra -std=c11 memory_stress.c -o memory_stress.exe
-gcc -O2 -Wall -Wextra -std=c11 cpu_stress.c -o cpu_stress.exe -lm
-```
+- **macOS:** instalar las Command Line Tools de Xcode si todavía no están disponibles: `xcode-select --install`. Incluyen `clang`, `make` y el SDK de macOS.
+- **Linux:** `gcc` o `clang`, `make`, `python3` y bibliotecas estándar POSIX/pthreads.
+- No se necesitan Homebrew, GNU `ps`, `/proc` ni librerías de terceros en macOS.
 
-## 1) Programa de consumo progresivo de memoria
-
-```powershell
-.\memory_stress.exe [MB_por_paso] [sleep_segundos] [max_pasos]
-```
-
-Ejemplo:
-
-```powershell
-.\memory_stress.exe 128 1 0
-```
-
-- `MB_por_paso`: memoria reservada en cada iteracion.
-- `sleep_segundos`: pausa entre iteraciones.
-- `max_pasos`: `0` para sin limite, o un numero para cortar antes.
-
-En Windows, el programa informa la memoria fisica disponible aproximada en cada paso.
-
-## 2) Programa de consumo de CPU
-
-```powershell
-.\cpu_stress.exe [iteraciones] [report_every]
-```
-
-Ejemplo:
-
-```powershell
-.\cpu_stress.exe 300000000 50000000
-```
-
-- `iteraciones`: total de iteraciones del lazo.
-- `report_every`: frecuencia de mensajes de progreso.
-
-## Monitorizacion recomendada
-
-- Abrir Administrador de tareas (`Ctrl+Shift+Esc`) -> pestana `Rendimiento`.
-- Para memoria: observar `Memoria` mientras corre `memory_stress.exe`.
-- Para CPU: observar `CPU` y el proceso `cpu_stress.exe` en pestana `Detalles`.
-
-## 3) Generar ensamblador con GCC
-
-La opcion es `-S`:
-
-```powershell
-gcc -O2 -S cpu_stress.c -o cpu_stress.s
-gcc -O2 -S memory_stress.c -o memory_stress.s
-```
-
-Esto genera los ficheros `.s` con el codigo ensamblador correspondiente.
-
-
-- `entregable1_fork_info_mem_file.c`: puntos 1, 2 y 3.
-- `entregable2_zombie_orfano_exec.c`: puntos 4, 5 y 6.
-- `entregable3_sumatorio_fork.c`: punto 7 (opcion d, unica implementada).
-
-### Compilar
-
-En Linux/WSL/macOS:
+Desde la raíz del repositorio:
 
 ```bash
-gcc -O2 -Wall -Wextra -std=c11 entregable1_fork_info_mem_file.c -o entregable1
-gcc -O2 -Wall -Wextra -std=c11 entregable2_zombie_orfano_exec.c -o entregable2
-gcc -O2 -Wall -Wextra -std=c11 entregable3_sumatorio_fork.c -o entregable3 -lm
+make                 # compila todos los .c en build/
+make test            # ejecuta pruebas rápidas y acotadas
+make clean
 ```
 
-En este Windows (GCC UCRT sin POSIX completo) compilan con fallback y muestran mensaje de entorno requerido.
+La configuración utiliza C11, `-Wall -Wextra`, soporte POSIX y enlaces con `-pthread -lm`. En macOS, `cc` es Apple Clang. Los binarios se colocan en `build/` para no confundirse con los fuentes.
 
-### Ejecutar
-
-#### ENTREGABLE 1
+Para compilar manualmente un ejercicio:
 
 ```bash
-./entregable1
-- IDs y entorno con `getpid/getppid/getuid/geteuid/getgid/getenv`.
-- Misma direccion virtual de variables global/local/dinamica en padre e hijo.
-- Valores distintos tras modificar en el hijo (copy-on-write).
-- Fichero abierto antes de `fork` compartido por padre e hijo.
-
-#### ENTREGABLE 2
-
-```bash
-./entregable2 wait
-- Estado zombie del hijo corto y `wait` del padre con `WEXITSTATUS`.
-- Hijo largo huerfano cuando termina el padre.
-- `execlp("ls", ...)` reemplaza imagen y el `printf` posterior no se ejecuta (si `exec` funciona).
-- Diferencia entre terminar con `wait` y sin `wait` para el zombie.
-
-#### ENTREGABLE 3
-
-```bash
+cc -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -D_DARWIN_C_SOURCE=1 \
+  practica6_1_mmap_ro.c -o p6_1 -pthread -lm
 ```
 
-Comprueba:
-	- Hijo-1 calcula pares.
-	- Hijo-2 (nieto) nace despues y completa impares sobre la `sum` heredada.
-	- Hijo-3 calcula referencia completa.
-- Se imprime la diferencia absoluta entre resultado de hijo-2 y referencia.
+En Linux se puede reemplazar `-D_DARWIN_C_SOURCE=1` por `-D_DEFAULT_SOURCE=1`. Es preferible usar `make`, que detecta ambos sistemas.
 
-- `entregable1_ctrlc_sigdfl.c`: punto 3, ENTREGABLE 1 (`SIGINT` personalizado hasta 8 veces y luego `SIG_DFL`).
-- `practica3_4_waitpid_kill_hermanos.c`: punto 4 (`waitpid` sobre H1 y finalizacion de H1 por H2).
-- `practica3_5_pause_sigusr1.c`: punto 5 (`pause` en hijo y desbloqueo con `SIGUSR1`).
-- `entregable2_sigaction_bloqueo.c`: punto 6, ENTREGABLE 2 (`sigaction`, bloqueo pendiente de `SIGUSR1`, ignorar `SIGINT`).
+## Ejercicios
 
-### Compilar
+| Tema | Código fuente | Ejemplo |
+|---|---|---|
+| Carga de CPU y memoria | `cpu_stress.c`, `memory_stress.c` | `./build/memory_stress 16 1 3` |
+| Procesos, `fork` y ficheros compartidos | `entregable1_fork_info_mem_file.c` | `./build/entregable1_fork_info_mem_file` |
+| Zombis, huérfanos y `exec` | `entregable2_zombie_orfano_exec.c` | `./build/entregable2_zombie_orfano_exec wait` |
+| Sumatorio por procesos | `entregable3_sumatorio_fork.c` | `./build/entregable3_sumatorio_fork` |
+| Señales entre procesos | `practica3_1_infinito_sigkill.c`, `practica3_2_padre_hijo_signal.c`, `practica3_4_waitpid_kill_hermanos.c`, `practica3_5_pause_sigusr1.c` | `./build/practica3_5_pause_sigusr1` |
+| Bloqueo de señales y Ctrl+C | `entregable1_ctrlc_sigdfl.c`, `entregable2_sigaction_bloqueo.c` | `./build/entregable1_ctrlc_sigdfl` |
+| Optativas: señales, zombis y sumatorio | `opt2_1_hijo1_senhala_hijo2_pipe.c`, `opt2_2_senales_sin_parentesco.c`, `opt2_3_zombies_huerfanos.c`, `opt2_4_sumatorio_sqrt_procesos.c` | `./build/opt2_4_sumatorio_sqrt_procesos 10000` |
+| Hilos y `fork` | `practica4_1_variables_hilos.c`, `practica4_2_tres_hilos_fork.c`, `practica4_3_exit_vs_pthread_exit.c` | `./build/practica4_2_tres_hilos_fork` |
+| Sumatorio paralelo con pthreads | `entregable4_sumatorio_sqrt_hilos.c` | `./build/entregable4_sumatorio_sqrt_hilos 10000` |
+| Mapas de memoria y cambio de imagen | `practica5_mapa_memoria.c`, `practica5_cos_exec.c` | `./build/practica5_mapa_memoria ./build/practica5_cos_exec` |
+| `mmap` privado/compartido | `practica6_1_mmap_ro.c`, `practica6_2_mmap_rw_modes.c` | Véase más abajo |
+| Dos procesos con proyecciones | `proyeccion1.c`, `proyeccion2.c` | Ejecutar en terminales distintas |
+| Archivos y permisos | `archivos.c` | `./build/archivos practica7/prueba 0666` |
 
-En Linux/WSL/macOS:
+### Ejemplos específicos
+
+**Señales entre procesos independientes** (dos terminales):
 
 ```bash
-gcc -O2 -Wall -Wextra -std=c11 practica3_1_infinito_sigkill.c -o p3_1
-gcc -O2 -Wall -Wextra -std=c11 practica3_2_padre_hijo_signal.c -o p3_2
-gcc -O2 -Wall -Wextra -std=c11 entregable1_ctrlc_sigdfl.c -o p3_ent1
-gcc -O2 -Wall -Wextra -std=c11 practica3_4_waitpid_kill_hermanos.c -o p3_4
-gcc -O2 -Wall -Wextra -std=c11 practica3_5_pause_sigusr1.c -o p3_5
-gcc -O2 -Wall -Wextra -std=c11 entregable2_sigaction_bloqueo.c -o p3_ent2
+./build/opt2_2_senales_sin_parentesco ejemplo A
+./build/opt2_2_senales_sin_parentesco ejemplo B
 ```
 
-En Windows, los programas muestran mensaje de entorno POSIX requerido.
+Los PID se intercambian por archivos temporales bajo `/tmp`; use un nombre de canal nuevo por ejecución y asegúrese de que no existan instancias antiguas del mismo canal.
 
-### Ejecutar
-
-```bash
-./p3_1
-# en otra consola:
-kill -9 <pid>
-
-./p3_2
-./p3_ent1
-./p3_4
-./p3_5
-Comprobaciones clave:
-- En ENTREGABLE 1, los primeros 8 `Ctrl+C` no terminan el proceso; el 9º si lo termina.
-- En punto 5, el hijo sale de `pause` al recibir `SIGUSR1` capturada.
-- En ENTREGABLE 2, el padre procesa `SIGUSR2` antes de `SIGUSR1` al desbloquearla, y `SIGINT` de H2 se ignora.
-
-- `practica4_1_variables_hilos.c`: punto 1 (acceso compartido a variables globales y por puntero).
-- `practica4_2_tres_hilos_fork.c`: punto 2 (3 hilos, fork desde el tercero, comprobacion de hilos en el hijo).
-- `practica4_3_exit_vs_pthread_exit.c`: punto 3 (efecto de `exit()` lanzado por un hilo).
-- `entregable4_sumatorio_sqrt_hilos.c`: punto 4, ENTREGABLE (sumatorio de raices con reparto por modulo entre hilos).
-
-### Compilar
-
-En Linux/WSL/macOS (incluyendo `-lpthread`):
-
-```bash
-gcc -O2 -Wall -Wextra -std=c11 practica4_1_variables_hilos.c -o p4_1 -lpthread
-gcc -O2 -Wall -Wextra -std=c11 practica4_2_tres_hilos_fork.c -o p4_2 -lpthread
-gcc -O2 -Wall -Wextra -std=c11 practica4_3_exit_vs_pthread_exit.c -o p4_3 -lpthread
-gcc -O2 -Wall -Wextra -std=c11 entregable4_sumatorio_sqrt_hilos.c -o p4_ent -lpthread -lm
-```
-
-### Ejecutar
-
-```bash
-./p4_1
-./p4_2
-./p4_3
-./p4_ent              # enunciado: N = Nc * 1e8
-- Punto 1: los hilos observan cambios en variable global y en local del main accedida por puntero.
-- Punto 2: el hijo creado con `fork` desde un proceso multihilo aparece con un unico hilo en `ps -T`.
-- Punto 3: cuando un hilo llama `exit()`, se termina todo el proceso (todos los hilos).
-- ENTREGABLE: comparar suma paralela vs secuencial, tiempos y speedup.
-
-### Archivos
-
-- `practica5_mapa_memoria.c`: programa principal con los puntos 1..5.
-- `practica5_cos_exec.c`: binario auxiliar para el `exec` del punto 4 (calculo de cosenos).
-
-### Compilar (WSL/Linux)
-
-```bash
-gcc -O2 -Wall -Wextra -std=c11 practica5_mapa_memoria.c -o p5_main -lpthread -lm
-gcc -O2 -Wall -Wextra -std=c11 practica5_cos_exec.c -o p5_cos_exec -lm
-```
-
-### Ejecutar
-
-Ejecucion interactiva (recomendada):
-
-```bash
-./p5_main ./p5_cos_exec
-```
-
-El programa pide Enter entre etapas para inspeccionar `/proc/PID/maps`.
-
-Ejecucion automatizada rapida (sin interaccion):
-
-```bash
-- Punto 2: direcciones de parametros/locales de `f1` y `f2` (zona de pila).
-- Punto 3: cambios en mapa antes/despues de `malloc`/`free`.
-- Punto 4: diferencias del mapa del hijo antes de `malloc`, despues de `malloc` y tras `exec`.
-- Punto 5 (ENTREGABLE): direcciones de global compartida y locales del main/hilos, mas pilas por TID.
-
-- `practica6_1_mmap_ro.c`: punto 1 (open + fstat + lectura + mmap RO/PRIVATE + munmap).
-- `practica6_2_mmap_rw_modes.c`: puntos 2, 3, 4 y 5 (shared/private, ro/rw, msync, comparacion de mapas).
-- `proyeccion1.c`: ENTREGABLE, proceso 1.
-- `proyeccion2.c`: ENTREGABLE, proceso 2.
-
-### Compilar (WSL/Linux)
-
-```bash
-gcc -O2 -Wall -Wextra -std=c11 practica6_1_mmap_ro.c -o p6_1
-gcc -O2 -Wall -Wextra -std=c11 practica6_2_mmap_rw_modes.c -o p6_2
-gcc -O2 -Wall -Wextra -std=c11 proyeccion1.c -o proyeccion1
-gcc -O2 -Wall -Wextra -std=c11 proyeccion2.c -o proyeccion2
-```
-
-### Ejecucion
-
-Preparar archivo base para pruebas:
+**Proyecciones de memoria**:
 
 ```bash
 printf 'abcdefghijk' > fichero.txt
+./build/practica6_1_mmap_ro fichero.txt
+./build/practica6_2_mmap_rw_modes fichero.txt private rw QQQ
+./build/practica6_2_mmap_rw_modes fichero.txt shared rw XYZ
+./build/practica6_2_mmap_rw_modes fichero.txt shared ro
 ```
 
-Punto 1:
+Para el entregable, ejecute `./build/proyeccion1` y, mientras está esperando, `./build/proyeccion2`. El contenido final esperado de `fichero.txt` y `fichero_tr.txt` es `0000001234abcd`.
+
+**Sistema de archivos** (en un directorio de trabajo donde se permita crear y cambiar archivos):
 
 ```bash
-./p6_1 fichero.txt
-```
-
-Puntos 2-5 (comparar efectos):
-
-```bash
-./p6_2 fichero.txt shared rw XYZ
-./p6_2 fichero.txt private rw QQQ
-./p6_2 fichero.txt shared ro
-```
-
-ENTREGABLE (dos terminales):
-
-Terminal 1:
-
-```bash
-./proyeccion1
-```
-
-Terminal 2:
-
-```bash
-./proyeccion2
-```
-
-Verificacion:
-
-```bash
-cat fichero.txt
-cat fichero_tr.txt
-```
-
-Resultado esperado en ambos archivos tras sincronizacion: `0000001234abcd`.
-
-
-### Archivo
-
-- `archivos.c`: implementa los puntos 1..5 del enunciado.
-
-### Compilar (WSL/Linux)
-
-```bash
-gcc -O2 -Wall -Wextra -std=c11 archivos.c -o archivos
-```
-
-### Preparar estructura de prueba
-
-```bash
-mkdir -p practica7/prueba/a_sub_dir
+mkdir -p practica7/prueba
 printf 'x' > practica7/prueba/a1
-printf 'x' > practica7/prueba/e1
-printf 'x' > practica7/prueba/A1
-printf 'x' > practica7/prueba/b1
-printf 'x' > practica7/prueba/c2
+./build/archivos practica7/prueba 0666
 ```
 
-### Ejecutar
+El programa `archivos` crea los ficheros `fichero.txt` y `fichero_2.txt` en el directorio actual y modifica permisos de los ficheros regulares de la ruta indicada; use una copia de prueba.
 
-```bash
-./archivos practica7/prueba 0666
-- `fichero.txt` cambia permisos a `0760`.
-- Se listan entradas del directorio de trabajo con `getcwd/opendir/readdir`.
-- En `practica7/prueba` se muestran atributos solo para archivos regulares cuyo nombre empieza por vocal minuscula.
-- Se cambian permisos de todos los archivos regulares de `practica7/prueba` al modo octal indicado por argumento.
+**Ctrl+C**: en `entregable1_ctrlc_sigdfl`, las ocho primeras señales `SIGINT` se contabilizan y se restaura el comportamiento predeterminado para la siguiente.
+
+## Diferencias relevantes de macOS
+
+- macOS **no tiene `/proc/PID/maps`**. `posix_compat.h` enumera las regiones de memoria del propio proceso mediante la API Mach y obtiene las direcciones de pila con `pthread_get_stackaddr_np`/`pthread_get_stacksize_np`. Linux sigue utilizando `/proc`.
+- Para el identificador de hilo se utiliza `pthread_threadid_np` en macOS y `gettid` mediante `syscall` en Linux.
+- El número de procesadores lógicos se obtiene mediante `sysctlbyname("hw.logicalcpu")` en macOS y `sysconf` donde está disponible.
+- `ps -T` es una opción de Linux; la práctica de hilos usa `ps -M` en macOS y realiza la inspección desde el proceso padre.
+- Los procesos huérfanos no dependen de `systemd` en macOS: la adopción depende del sistema y de `launchd`.
+- Los archivos `cpu_stress.s` y `memory_stress.s` son **salidas ensamblador conservadas del entorno original**. No son ensamblador universal para x86_64 y arm64: genere la versión adecuada para su Mac usando `cc -O2 -S cpu_stress.c -o cpu_stress_mac.s`, y análogamente con `memory_stress.c`.
+
+## Diagnóstico y pruebas
+
+- **macOS:** Monitor de Actividad (CPU y Memoria), `top -pid <PID>`, `vm_stat` y `ps -M -p <PID>`.
+- **Linux:** `top`, `ps -T -p <PID>` y `cat /proc/<PID>/maps`.
+- **CI:** `.github/workflows/posix-ci.yml` compila todos los `.c` y ejecuta `tests/smoke.py` en `ubuntu-latest` y `macos-latest`. Los casos interactivos se alimentan automáticamente; los infinitos se detienen mediante señales; las pruebas de escritura usan directorios temporales.
+
+Las prácticas ilustran aspectos concretos de POSIX; no todas las características internas del kernel (zombis, direcciones de memoria, numeración de hilos o formato exacto de `ps`) tienen representaciones idénticas en Linux y macOS.
+
+**Windows nativo:** los ejercicios que requieren `fork`, señales POSIX o `mmap` permanecen restringidos a sistemas POSIX; en Windows pueden ejecutarse desde WSL.
